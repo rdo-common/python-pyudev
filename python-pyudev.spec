@@ -2,7 +2,7 @@
 
 Name:             python-pyudev
 Version:          0.15
-Release:          1%{?dist}
+Release:          2%{?dist}
 Summary:          A libudev binding
 
 Group:            Development/Languages
@@ -47,5 +47,8 @@ officially supported.
 
 
 %changelog
+* Sat Jul 21 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0.15-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
+
 * Mon Jun 18 2012 Chris Lockfort <clockfort@redhat.com> 0.15-1
 - initial package

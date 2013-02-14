@@ -2,7 +2,7 @@
 
 Name:             python-pyudev
 Version:          0.15
-Release:          3%{?dist}
+Release:          4%{?dist}
 Summary:          A libudev binding
 
 Group:            Development/Languages
@@ -47,6 +47,9 @@ officially supported.
 
 
 %changelog
+* Thu Feb 14 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0.15-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
+
 * Mon Jul 23 2012 Chris Lockfort <clockfort@redhat.com> 0.15-3
 - Reflect rawhide merging udev into systemd
 * Sat Jul 21 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0.15-2

@@ -1,52 +1,82 @@
-%global modname pyudev
-
 Name:             python-pyudev
 Version:          0.15
-Release:          6%{?dist}
+Release:          7%{?dist}
 Summary:          A libudev binding
 
-Group:            Development/Languages
-License:          LGPL
+License:          LGPLv2+
 URL:              http://pypi.python.org/pypi/pyudev
-Source0:          http://pypi.python.org/packages/source/p/pyudev/pyudev-0.15.tar.gz
+Source0:          http://pypi.python.org/packages/source/p/pyudev/pyudev-%{version}.tar.gz
 
 BuildArch:        noarch
 
-
-BuildRequires:    python-devel python-setuptools systemd-devel
-Requires:         python python-setuptools
+BuildRequires:    python2-devel
+BuildRequires:    python-setuptools
 
 %description
-###### pyudev ######
-
 pyudev is a LGPL licensed, pure Python binding for libudev, the device
 and hardware management and information library for Linux.  It supports
 almost all libudev functionality, you can enumerate devices, query device
 properties and attributes or monitor devices, including asynchronous
 monitoring with threads, or within the event loops of Qt, Glib or wxPython.
 
-The binding supports CPython_ 2 (2.6 or newer) and 3 (3.1 or newer), and
-PyPy_ 1.5 or newer.  It is tested against udev 151 or newer, earlier
+The binding supports CPython 2 (2.6 or newer) and 3 (3.1 or newer), and
+PyPy 1.5 or newer.  It is tested against udev 151 or newer, earlier
+versions of udev as found on dated Linux systems may work, but are not
+officially supported.
+
+%package -n python3-pyudev
+Summary:          A libudev binding
+BuildRequires:    python3-devel
+BuildRequires:    python3-setuptools
+
+%description -n python3-pyudev
+pyudev is a LGPL licensed, pure Python binding for libudev, the device
+and hardware management and information library for Linux.  It supports
+almost all libudev functionality, you can enumerate devices, query device
+properties and attributes or monitor devices, including asynchronous
+monitoring with threads, or within the event loops of Qt, Glib or wxPython.
+
+The binding supports CPython 2 (2.6 or newer) and 3 (3.1 or newer), and
+PyPy 1.5 or newer.  It is tested against udev 151 or newer, earlier
 versions of udev as found on dated Linux systems may work, but are not
 officially supported.
 
 %prep
-%setup -q -n %{modname}-%{version}
+%setup -q -n pyudev-%{version}
+rm -rf pyudev.egg-info
+
+rm -rf %{py3dir}
+cp -a . %{py3dir}
 
 %build
-%{__python} setup.py build 
+%{__python2} setup.py build 
+
+( cd %{py3dir} && %{__python3} setup.py build )
 
 %install
-%{__python} setup.py install -O1 --skip-build --root $RPM_BUILD_ROOT
+%{__python} setup.py install --skip-build --root $RPM_BUILD_ROOT
 
+( cd %{py3dir} && %{__python3} setup.py install --skip-build --root $RPM_BUILD_ROOT )
 
 %files
 %doc COPYING README.rst
-%{python_sitelib}/%{modname}
-%{python_sitelib}/%{modname}-%{version}*
+%{python2_sitelib}/pyudev
+%{python2_sitelib}/pyudev-%{version}-*.egg-info
 
+%files -n python3-pyudev
+%doc COPYING README.rst
+%{python3_sitelib}/pyudev
+%{python3_sitelib}/pyudev-%{version}-*.egg-info
 
 %changelog
+* Wed Dec 10 2014 David Shea <dshea@redhat.com> - 0.15-7
+- Fix license tag (LGPL -> LGPLv2+) (#990579)
+- Remove rst tags from description
+- Remove unnecessary requires and buildrequires (#1095459)
+- Avoid packaging upstream egg-info files
+- Add a python3 package
+- Drop the Group tag which wasn't even the right group
+
 * Sat Jun 07 2014 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0.15-6
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_21_Mass_Rebuild
 

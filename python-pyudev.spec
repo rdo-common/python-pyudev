@@ -1,11 +1,12 @@
 Name:             python-pyudev
-Version:          0.15
-Release:          7%{?dist}
+Version:          0.16.1
+Release:          1%{?dist}
 Summary:          A libudev binding
 
 License:          LGPLv2+
 URL:              http://pypi.python.org/pypi/pyudev
 Source0:          http://pypi.python.org/packages/source/p/pyudev/pyudev-%{version}.tar.gz
+Patch0:           pyudev-0.16.1-global-libudev.patch
 
 BuildArch:        noarch
 
@@ -43,6 +44,8 @@ officially supported.
 
 %prep
 %setup -q -n pyudev-%{version}
+%patch0 -p1 -b .global-libudev
+
 rm -rf pyudev.egg-info
 
 rm -rf %{py3dir}
@@ -59,16 +62,20 @@ cp -a . %{py3dir}
 ( cd %{py3dir} && %{__python3} setup.py install --skip-build --root $RPM_BUILD_ROOT )
 
 %files
-%doc COPYING README.rst
+%doc COPYING README.rst CHANGES.rst
 %{python2_sitelib}/pyudev
 %{python2_sitelib}/pyudev-%{version}-*.egg-info
 
 %files -n python3-pyudev
-%doc COPYING README.rst
+%doc COPYING README.rst CHANGES.rst
 %{python3_sitelib}/pyudev
 %{python3_sitelib}/pyudev-%{version}-*.egg-info
 
 %changelog
+* Wed Dec 10 2014 David Shea <dshea@redhat.com> - 0.16-1
+- Update to pyudev-0.16.1 (#880644)
+- Apply a patch from upstream to remove a global reference to libudev (#1170337)
+
 * Wed Dec 10 2014 David Shea <dshea@redhat.com> - 0.15-7
 - Fix license tag (LGPL -> LGPLv2+) (#990579)
 - Remove rst tags from description

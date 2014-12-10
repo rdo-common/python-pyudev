@@ -1,0 +1,1375 @@
+diff -purN pyudev-0.16.1.orig/pyudev/core.py pyudev-0.16.1/pyudev/core.py
+--- pyudev-0.16.1.orig/pyudev/core.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/pyudev/core.py	2014-12-10 15:49:59.425053628 -0500
+@@ -35,7 +35,7 @@ except ImportError:
+     from pyudev._compat import check_output
+ 
+ from pyudev.device import Device
+-from pyudev._libudev import libudev
++from pyudev._libudev import load_udev_library
+ from pyudev._util import (ensure_unicode_string, ensure_byte_string,
+                           udev_list_iterate, property_value_to_bytes)
+ 
+@@ -92,18 +92,19 @@ class Context(object):
+         """
+         Create a new context.
+         """
+-        self._as_parameter_ = libudev.udev_new()
++        self._libudev = load_udev_library()
++        self._as_parameter_ = self._libudev.udev_new()
+ 
+     def __del__(self):
+-        libudev.udev_unref(self)
++        self._libudev.udev_unref(self)
+ 
+     @property
+     def sys_path(self):
+         """
+         The ``sysfs`` mount point defaulting to ``/sys'`` as unicode string.
+         """
+-        if hasattr(libudev, 'udev_get_sys_path'):
+-            return ensure_unicode_string(libudev.udev_get_sys_path(self))
++        if hasattr(self._libudev, 'udev_get_sys_path'):
++            return ensure_unicode_string(self._libudev.udev_get_sys_path(self))
+         else:
+             # Fixed path since udev 183
+             return '/sys'
+@@ -113,8 +114,8 @@ class Context(object):
+         """
+         The device directory path defaulting to ``/dev`` as unicode string.
+         """
+-        if hasattr(libudev, 'udev_get_dev_path'):
+-            return ensure_unicode_string(libudev.udev_get_dev_path(self))
++        if hasattr(self._libudev, 'udev_get_dev_path'):
++            return ensure_unicode_string(self._libudev.udev_get_dev_path(self))
+         else:
+             # Fixed path since udev 183
+             return '/dev'
+@@ -129,8 +130,8 @@ class Context(object):
+ 
+         .. versionadded:: 0.10
+         """
+-        if hasattr(libudev, 'udev_get_run_path'):
+-            return ensure_unicode_string(libudev.udev_get_run_path(self))
++        if hasattr(self._libudev, 'udev_get_run_path'):
++            return ensure_unicode_string(self._libudev.udev_get_run_path(self))
+         else:
+             return '/run/udev'
+ 
+@@ -151,11 +152,11 @@ class Context(object):
+ 
+         .. versionadded:: 0.9
+         """
+-        return libudev.udev_get_log_priority(self)
++        return self._libudev.udev_get_log_priority(self)
+ 
+     @log_priority.setter
+     def log_priority(self, value):
+-        libudev.udev_set_log_priority(self, value)
++        self._libudev.udev_set_log_priority(self, value)
+ 
+     def list_devices(self, **kwargs):
+         """
+@@ -214,10 +215,11 @@ class Enumerator(object):
+         if not isinstance(context, Context):
+             raise TypeError('Invalid context object')
+         self.context = context
+-        self._as_parameter_ = libudev.udev_enumerate_new(context)
++        self._as_parameter_ = context._libudev.udev_enumerate_new(context)
++        self._libudev = context._libudev
+ 
+     def __del__(self):
+-        libudev.udev_enumerate_unref(self)
++        self._libudev.udev_enumerate_unref(self)
+ 
+     def match(self, **kwargs):
+         """
+@@ -274,9 +276,9 @@ class Enumerator(object):
+ 
+         Return the instance again.
+         """
+-        match = (libudev.udev_enumerate_add_match_subsystem
++        match = (self._libudev.udev_enumerate_add_match_subsystem
+                  if not nomatch else
+-                 libudev.udev_enumerate_add_nomatch_subsystem)
++                 self._libudev.udev_enumerate_add_nomatch_subsystem)
+         match(self, ensure_byte_string(subsystem))
+         return self
+ 
+@@ -290,7 +292,7 @@ class Enumerator(object):
+ 
+         .. versionadded:: 0.8
+         """
+-        libudev.udev_enumerate_add_match_sysname(
++        self._libudev.udev_enumerate_add_match_sysname(
+             self, ensure_byte_string(sys_name))
+         return self
+ 
+@@ -310,7 +312,7 @@ class Enumerator(object):
+ 
+         Return the instance again.
+         """
+-        libudev.udev_enumerate_add_match_property(
++        self._libudev.udev_enumerate_add_match_property(
+             self, ensure_byte_string(property), property_value_to_bytes(value))
+         return self
+ 
+@@ -341,9 +343,9 @@ class Enumerator(object):
+ 
+         Return the instance again.
+         """
+-        match = (libudev.udev_enumerate_add_match_sysattr
++        match = (self._libudev.udev_enumerate_add_match_sysattr
+                  if not nomatch else
+-                 libudev.udev_enumerate_add_nomatch_sysattr)
++                 self._libudev.udev_enumerate_add_nomatch_sysattr)
+         match(self, ensure_byte_string(attribute),
+               property_value_to_bytes(value))
+         return self
+@@ -360,7 +362,7 @@ class Enumerator(object):
+ 
+         .. versionadded:: 0.6
+         """
+-        libudev.udev_enumerate_add_match_tag(self, ensure_byte_string(tag))
++        self._libudev.udev_enumerate_add_match_tag(self, ensure_byte_string(tag))
+         return self
+ 
+     def match_is_initialized(self):
+@@ -381,7 +383,7 @@ class Enumerator(object):
+ 
+         .. versionadded:: 0.8
+         """
+-        libudev.udev_enumerate_add_match_is_initialized(self)
++        self._libudev.udev_enumerate_add_match_is_initialized(self)
+         return self
+ 
+     def match_parent(self, parent):
+@@ -398,7 +400,7 @@ class Enumerator(object):
+ 
+         .. versionadded:: 0.13
+         """
+-        libudev.udev_enumerate_add_match_parent(self, parent)
++        self._libudev.udev_enumerate_add_match_parent(self, parent)
+         return self
+ 
+     def __iter__(self):
+@@ -407,7 +409,7 @@ class Enumerator(object):
+ 
+         Yield :class:`Device` objects.
+         """
+-        libudev.udev_enumerate_scan_devices(self)
+-        entry = libudev.udev_enumerate_get_list_entry(self)
+-        for name, _ in udev_list_iterate(entry):
++        self._libudev.udev_enumerate_scan_devices(self)
++        entry = self._libudev.udev_enumerate_get_list_entry(self)
++        for name, _ in udev_list_iterate(self._libudev, entry):
+             yield Device.from_sys_path(self.context, name)
+diff -purN pyudev-0.16.1.orig/pyudev/device.py pyudev-0.16.1/pyudev/device.py
+--- pyudev-0.16.1.orig/pyudev/device.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/pyudev/device.py	2014-12-10 15:49:59.426053645 -0500
+@@ -32,7 +32,6 @@ import os
+ from collections import Mapping, Container, Iterable
+ from datetime import timedelta
+ 
+-from pyudev._libudev import libudev
+ from pyudev._util import (ensure_byte_string, ensure_unicode_string,
+                           udev_list_iterate, string_to_bool,
+                           get_device_type)
+@@ -221,7 +220,7 @@ class Device(Mapping):
+            Raise :exc:`DeviceNotFoundAtPathError` instead of
+            :exc:`NoSuchDeviceError`.
+         """
+-        device = libudev.udev_device_new_from_syspath(
++        device = context._libudev.udev_device_new_from_syspath(
+             context, ensure_byte_string(sys_path))
+         if not device:
+             raise DeviceNotFoundAtPathError(sys_path)
+@@ -250,7 +249,7 @@ class Device(Mapping):
+ 
+         .. versionadded:: 0.5
+         """
+-        device = libudev.udev_device_new_from_subsystem_sysname(
++        device = context._libudev.udev_device_new_from_subsystem_sysname(
+             context, ensure_byte_string(subsystem),
+             ensure_byte_string(sys_name))
+         if not device:
+@@ -299,7 +298,7 @@ class Device(Mapping):
+         if type not in ('char', 'block'):
+             raise ValueError('Invalid type: {0!r}. Must be one of "char" '
+                              'or "block".'.format(type))
+-        device = libudev.udev_device_new_from_devnum(
++        device = context._libudev.udev_device_new_from_devnum(
+             context, ensure_byte_string(type[0]), number)
+         if not device:
+             raise DeviceNotFoundByNumberError(type, number)
+@@ -364,7 +363,7 @@ class Device(Mapping):
+ 
+         .. versionadded:: 0.6
+         """
+-        device = libudev.udev_device_new_from_environment(context)
++        device = context._libudev.udev_device_new_from_environment(context)
+         if not device:
+             raise DeviceNotFoundInEnvironmentError()
+         return cls(context, device)
+@@ -372,9 +371,10 @@ class Device(Mapping):
+     def __init__(self, context, _device):
+         self.context = context
+         self._as_parameter_ = _device
++        self._libudev = context._libudev
+ 
+     def __del__(self):
+-        libudev.udev_device_unref(self)
++        self._libudev.udev_device_unref(self)
+ 
+     def __repr__(self):
+         return 'Device({0.sys_path!r})'.format(self)
+@@ -385,12 +385,12 @@ class Device(Mapping):
+         The parent :class:`Device` or ``None``, if there is no parent
+         device.
+         """
+-        parent = libudev.udev_device_get_parent(self)
++        parent = self._libudev.udev_device_get_parent(self)
+         if not parent:
+             return None
+         # the parent device is not referenced, thus forcibly acquire a
+         # reference
+-        return Device(self.context, libudev.udev_device_ref(parent))
++        return Device(self.context, self._libudev.udev_device_ref(parent))
+ 
+     @property
+     def children(self):
+@@ -460,12 +460,12 @@ class Device(Mapping):
+         subsystem = ensure_byte_string(subsystem)
+         if device_type is not None:
+             device_type = ensure_byte_string(device_type)
+-        parent = libudev.udev_device_get_parent_with_subsystem_devtype(
++        parent = self._libudev.udev_device_get_parent_with_subsystem_devtype(
+             self, subsystem, device_type)
+         if not parent:
+             return None
+         # parent device is not referenced, thus forcibly acquire a reference
+-        return Device(self.context, libudev.udev_device_ref(parent))
++        return Device(self.context, self._libudev.udev_device_ref(parent))
+ 
+     def traverse(self):
+         """
+@@ -489,7 +489,8 @@ class Device(Mapping):
+         Absolute path of this device in ``sysfs`` including the ``sysfs``
+         mount point as unicode string.
+         """
+-        return ensure_unicode_string(libudev.udev_device_get_syspath(self))
++        return ensure_unicode_string(
++            self._libudev.udev_device_get_syspath(self))
+ 
+     @property
+     def device_path(self):
+@@ -501,21 +502,24 @@ class Device(Mapping):
+         mount point.  However, the path is absolute and starts with a slash
+         ``'/'``.
+         """
+-        return ensure_unicode_string(libudev.udev_device_get_devpath(self))
++        return ensure_unicode_string(
++            self._libudev.udev_device_get_devpath(self))
+ 
+     @property
+     def subsystem(self):
+         """
+         Name of the subsystem this device is part of as unicode string.
+         """
+-        return ensure_unicode_string(libudev.udev_device_get_subsystem(self))
++        return ensure_unicode_string(
++            self._libudev.udev_device_get_subsystem(self))
+ 
+     @property
+     def sys_name(self):
+         """
+         Device file name inside ``sysfs`` as unicode string.
+         """
+-        return ensure_unicode_string(libudev.udev_device_get_sysname(self))
++        return ensure_unicode_string(
++            self._libudev.udev_device_get_sysname(self))
+ 
+     @property
+     def sys_number(self):
+@@ -541,7 +545,7 @@ class Device(Mapping):
+ 
+         .. versionadded:: 0.11
+         """
+-        number = libudev.udev_device_get_sysnum(self)
++        number = self._libudev.udev_device_get_sysnum(self)
+         if number is not None:
+             return ensure_unicode_string(number)
+ 
+@@ -563,7 +567,7 @@ class Device(Mapping):
+ 
+         .. versionadded:: 0.10
+         """
+-        device_type = libudev.udev_device_get_devtype(self)
++        device_type = self._libudev.udev_device_get_devtype(self)
+         if device_type is not None:
+             return ensure_unicode_string(device_type)
+ 
+@@ -575,7 +579,7 @@ class Device(Mapping):
+ 
+         .. versionadded:: 0.5
+         """
+-        driver = libudev.udev_device_get_driver(self)
++        driver = self._libudev.udev_device_get_driver(self)
+         if driver:
+             return ensure_unicode_string(driver)
+ 
+@@ -597,7 +601,7 @@ class Device(Mapping):
+            this property is not necessary equal to the ``filename`` given to
+            :meth:`from_device_file()`.
+         """
+-        node = libudev.udev_device_get_devnode(self)
++        node = self._libudev.udev_device_get_devnode(self)
+         if node:
+             return ensure_unicode_string(node)
+ 
+@@ -627,7 +631,7 @@ class Device(Mapping):
+ 
+         .. versionadded:: 0.11
+         """
+-        return libudev.udev_device_get_devnum(self)
++        return self._libudev.udev_device_get_devnum(self)
+ 
+     @property
+     def is_initialized(self):
+@@ -650,7 +654,7 @@ class Device(Mapping):
+ 
+         .. versionadded:: 0.8
+         """
+-        return bool(libudev.udev_device_get_is_initialized(self))
++        return bool(self._libudev.udev_device_get_is_initialized(self))
+ 
+     @property
+     def time_since_initialized(self):
+@@ -667,7 +671,8 @@ class Device(Mapping):
+ 
+         .. versionadded:: 0.8
+         """
+-        microseconds = libudev.udev_device_get_usec_since_initialized(self)
++        microseconds = self._libudev.udev_device_get_usec_since_initialized(
++            self)
+         return timedelta(microseconds=microseconds)
+ 
+     @property
+@@ -693,8 +698,8 @@ class Device(Mapping):
+            ``Device.from_device_file(context, link).device_path ==
+            device.device_path`` from any ``link`` in ``device.device_links``.
+         """
+-        devlinks = libudev.udev_device_get_devlinks_list_entry(self)
+-        for name, _ in udev_list_iterate(devlinks):
++        devlinks = self._libudev.udev_device_get_devlinks_list_entry(self)
++        for name, _ in udev_list_iterate(self._libudev, devlinks):
+             yield ensure_unicode_string(name)
+ 
+     @property
+@@ -724,7 +729,7 @@ class Device(Mapping):
+ 
+         .. versionadded:: 0.16
+         """
+-        action = libudev.udev_device_get_action(self)
++        action = self._libudev.udev_device_get_action(self)
+         if action:
+             return ensure_unicode_string(action)
+ 
+@@ -736,7 +741,7 @@ class Device(Mapping):
+ 
+         .. versionadded:: 0.16
+         """
+-        return libudev.udev_device_get_seqnum(self)
++        return self._libudev.udev_device_get_seqnum(self)
+ 
+     @property
+     def attributes(self):
+@@ -800,19 +805,16 @@ class Device(Mapping):
+         Return a generator yielding the names of all properties of this
+         device as unicode strings.
+         """
+-        properties = libudev.udev_device_get_properties_list_entry(self)
+-        for name, _ in udev_list_iterate(properties):
++        properties = self._libudev.udev_device_get_properties_list_entry(self)
++        for name, _ in udev_list_iterate(self._libudev, properties):
+             yield ensure_unicode_string(name)
+ 
+     def __len__(self):
+         """
+         Return the amount of properties defined for this device as integer.
+         """
+-        properties = libudev.udev_device_get_properties_list_entry(self)
+-        i = 0
+-        for i, _ in enumerate(udev_list_iterate(properties), start=1):
+-            pass
+-        return i
++        properties = self._libudev.udev_device_get_properties_list_entry(self)
++        return sum(1 for _ in udev_list_iterate(self._libudev, properties))
+ 
+     def __getitem__(self, property):
+         """
+@@ -825,7 +827,7 @@ class Device(Mapping):
+         :exc:`~exceptions.KeyError`, if the given property is not defined
+         for this device.
+         """
+-        value = libudev.udev_device_get_property_value(
++        value = self._libudev.udev_device_get_property_value(
+             self, ensure_byte_string(property))
+         if value is None:
+             raise KeyError(property)
+@@ -901,14 +903,17 @@ class Tags(Iterable, Container):
+     def __init__(self, device):
+         self.device = device
+ 
+-    if hasattr(libudev, 'udev_device_has_tag'):
+-        def _has_tag(self, tag):
+-            return bool(libudev.udev_device_has_tag(
++    def _has_tag(self, tag):
++        if hasattr(self._libudev, 'udev_device_has_tag'):
++            return bool(self._libudev.udev_device_has_tag(
+                 self.device, ensure_byte_string(tag)))
+-    else:
+-        def _has_tag(self, tag):
++        else:
+             return any(t == tag for t in self)
+ 
++    @property
++    def _libudev(self):
++        return self.device._libudev
++
+     def __contains__(self, tag):
+         """
+         Check for existence of ``tag``.
+@@ -926,8 +931,8 @@ class Tags(Iterable, Container):
+ 
+         Yield each tag as unicode string.
+         """
+-        tags = libudev.udev_device_get_tags_list_entry(self.device)
+-        for tag, _ in udev_list_iterate(tags):
++        tags = self._libudev.udev_device_get_tags_list_entry(self.device)
++        for tag, _ in udev_list_iterate(self._libudev, tags):
+             yield ensure_unicode_string(tag)
+ 
+ 
+@@ -963,29 +968,26 @@ class Attributes(Mapping):
+ 
+     def __init__(self, device):
+         self.device = device
++        self._libudev = device._libudev
+ 
+-    if hasattr(libudev, 'udev_device_get_sysattr_list_entry'):
+-        @property
+-        def _attributes(self):
+-            attrs = libudev.udev_device_get_sysattr_list_entry(self.device)
+-            for attribute, _ in udev_list_iterate(attrs):
++    def _get_attributes(self):
++        if hasattr(self._libudev, 'udev_device_get_sysattr_list_entry'):
++            attrs = self._libudev.udev_device_get_sysattr_list_entry(
++                self.device)
++            for attribute, _ in udev_list_iterate(self._libudev, attrs):
+                 yield ensure_unicode_string(attribute)
+-    else:
+-        @property
+-        def _attributes(self):
++        else:
+             sys_path = self.device.sys_path
+-            return (fn for fn in os.listdir(sys_path) if
+-                    _is_attribute_file(os.path.join(sys_path, fn)) and
+-                    fn in self)
++            for filename in os.listdir(sys_path):
++                filepath = os.path.join(sys_path, filename)
++                if _is_attribute_file(filepath):
++                    yield filename
+ 
+     def __len__(self):
+         """
+         Return the amount of attributes defined.
+         """
+-        i = 0
+-        for i, _ in enumerate(self._attributes, start=1):
+-            pass
+-        return i
++        return sum(1 for _ in self._get_attributes())
+ 
+     def __iter__(self):
+         """
+@@ -993,10 +995,10 @@ class Attributes(Mapping):
+ 
+         Yield each attribute name as unicode string.
+         """
+-        return self._attributes
++        return self._get_attributes()
+ 
+     def __contains__(self, attribute):
+-        value = libudev.udev_device_get_sysattr_value(
++        value = self._libudev.udev_device_get_sysattr_value(
+             self.device, ensure_byte_string(attribute))
+         return value is not None
+ 
+@@ -1011,7 +1013,7 @@ class Attributes(Mapping):
+         :exc:`~exceptions.KeyError`, if the given attribute is not defined
+         for this device.
+         """
+-        value = libudev.udev_device_get_sysattr_value(
++        value = self._libudev.udev_device_get_sysattr_value(
+             self.device, ensure_byte_string(attribute))
+         if value is None:
+             raise KeyError(attribute)
+diff -purN pyudev-0.16.1.orig/pyudev/_libudev.py pyudev-0.16.1/pyudev/_libudev.py
+--- pyudev-0.16.1.orig/pyudev/_libudev.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/pyudev/_libudev.py	2014-12-10 15:49:59.425053628 -0500
+@@ -284,6 +284,3 @@ def load_udev_library():
+                 if errorchecker:
+                     func.errcheck = errorchecker
+     return libudev
+-
+-
+-libudev = load_udev_library()
+diff -purN pyudev-0.16.1.orig/pyudev/monitor.py pyudev-0.16.1/pyudev/monitor.py
+--- pyudev-0.16.1.orig/pyudev/monitor.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/pyudev/monitor.py	2014-12-10 15:49:59.426053645 -0500
+@@ -34,7 +34,6 @@ import select
+ from threading import Thread
+ from contextlib import closing
+ 
+-from pyudev._libudev import libudev
+ from pyudev._util import ensure_byte_string
+ 
+ from pyudev.core import Device
+@@ -86,10 +85,11 @@ class Monitor(object):
+     def __init__(self, context, monitor_p):
+         self.context = context
+         self._as_parameter_ = monitor_p
++        self._libudev = context._libudev
+         self._started = False
+ 
+     def __del__(self):
+-        libudev.udev_monitor_unref(self)
++        self._libudev.udev_monitor_unref(self)
+ 
+     @classmethod
+     def from_netlink(cls, context, source='udev'):
+@@ -117,7 +117,7 @@ class Monitor(object):
+         if source not in ('kernel', 'udev'):
+             raise ValueError('Invalid source: {0!r}. Must be one of "udev" '
+                              'or "kernel"'.format(source))
+-        monitor = libudev.udev_monitor_new_from_netlink(
++        monitor = context._libudev.udev_monitor_new_from_netlink(
+             context, ensure_byte_string(source))
+         if not monitor:
+             raise EnvironmentError('Could not create udev monitor')
+@@ -140,7 +140,7 @@ class Monitor(object):
+         This is really a real file descriptor ;), which can be watched and
+         :func:`select.select`\ ed.
+         """
+-        return libudev.udev_monitor_get_fd(self)
++        return self._libudev.udev_monitor_get_fd(self)
+ 
+     def filter_by(self, subsystem, device_type=None):
+         """
+@@ -165,9 +165,9 @@ class Monitor(object):
+         subsystem = ensure_byte_string(subsystem)
+         if device_type:
+             device_type = ensure_byte_string(device_type)
+-        libudev.udev_monitor_filter_add_match_subsystem_devtype(
++        self._libudev.udev_monitor_filter_add_match_subsystem_devtype(
+             self, subsystem, device_type)
+-        libudev.udev_monitor_filter_update(self)
++        self._libudev.udev_monitor_filter_update(self)
+ 
+     def filter_by_tag(self, tag):
+         """
+@@ -188,9 +188,9 @@ class Monitor(object):
+         .. versionchanged:: 0.15
+            This method can also be after :meth:`start()` now.
+         """
+-        libudev.udev_monitor_filter_add_match_tag(
++        self._libudev.udev_monitor_filter_add_match_tag(
+             self, ensure_byte_string(tag))
+-        libudev.udev_monitor_filter_update(self)
++        self._libudev.udev_monitor_filter_update(self)
+ 
+     def remove_filter(self):
+         """
+@@ -209,8 +209,8 @@ class Monitor(object):
+ 
+         .. versionadded:: 0.15
+         """
+-        libudev.udev_monitor_filter_remove(self)
+-        libudev.udev_monitor_filter_update(self)
++        self._libudev.udev_monitor_filter_remove(self)
++        self._libudev.udev_monitor_filter_update(self)
+ 
+     def enable_receiving(self):
+         """
+@@ -251,7 +251,7 @@ class Monitor(object):
+            started.
+         """
+         if not self._started:
+-            libudev.udev_monitor_enable_receiving(self)
++            self._libudev.udev_monitor_enable_receiving(self)
+             self._started = True
+ 
+     def set_receive_buffer_size(self, size):
+@@ -279,7 +279,7 @@ class Monitor(object):
+ 
+         .. _python-prctl: http://packages.python.org/python-prctl
+         """
+-        libudev.udev_monitor_set_receive_buffer_size(self, size)
++        self._libudev.udev_monitor_set_receive_buffer_size(self, size)
+ 
+     def _receive_device(self):
+         """
+@@ -288,7 +288,7 @@ class Monitor(object):
+         Return the received :class:`Device`. Raise
+         :exc:`~exceptions.EnvironmentError`, if no device could be read.
+         """
+-        device_p = libudev.udev_monitor_receive_device(self)
++        device_p = self._libudev.udev_monitor_receive_device(self)
+         if not device_p:
+             raise EnvironmentError('Could not receive device')
+         return Device(self.context, device_p)
+diff -purN pyudev-0.16.1.orig/pyudev/_util.py pyudev-0.16.1/pyudev/_util.py
+--- pyudev-0.16.1.orig/pyudev/_util.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/pyudev/_util.py	2014-12-10 15:49:59.425053628 -0500
+@@ -33,7 +33,6 @@ import os
+ import sys
+ import stat
+ 
+-from pyudev._libudev import libudev
+ 
+ if sys.version_info[0] == 2:
+     text_type = unicode
+@@ -101,7 +100,7 @@ def string_to_bool(value):
+     return value == '1'
+ 
+ 
+-def udev_list_iterate(entry):
++def udev_list_iterate(libudev, entry):
+     """
+     Iteration helper for udev list entry objects.
+ 
+diff -purN pyudev-0.16.1.orig/tests/conftest.py pyudev-0.16.1/tests/conftest.py
+--- pyudev-0.16.1.orig/tests/conftest.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/tests/conftest.py	2014-12-10 15:49:59.426053645 -0500
+@@ -64,7 +64,6 @@ def pytest_namespace():
+ 
+ def pytest_funcarg__context(request):
+     """
+-    Return a useable :class:`pyudev.Context` object.  The context is cached
+-    with session scope.
++    Return a useable :class:`pyudev.Context` object.
+     """
+-    return request.cached_setup(setup=pyudev.Context, scope='session')
++    return pyudev.Context()
+diff -purN pyudev-0.16.1.orig/tests/plugins/mock_libudev.py pyudev-0.16.1/tests/plugins/mock_libudev.py
+--- pyudev-0.16.1.orig/tests/plugins/mock_libudev.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/tests/plugins/mock_libudev.py	2014-12-10 15:49:59.426053645 -0500
+@@ -38,33 +38,6 @@ from collections import namedtuple
+ import mock
+ 
+ 
+-@contextmanager
+-def calls_to_libudev(function_calls):
+-    """
+-    Mock libudev functions and check calls to the mocked functions::
+-
+-       calls = {'udev_device_ref': [(device,)]}
+-       with pytest.calls_to_libudev(calls):
+-           device.parent
+-
+-    ``function_calls`` is a dictionary that maps libudev function names to a
+-    list of calls, where each call is represented as tuple containing the
+-    arguments expected to be passed to the function.
+-
+-    If any call in ``function_calls`` does not occur, the function triggers an
+-    assertion.
+-
+-    All mocked functions are restored if the context exits.
+-    """
+-    from pyudev._libudev import libudev
+-    mocks = dict((function, mock.DEFAULT) for function in function_calls)
+-    with mock.patch.multiple(libudev, **mocks):
+-        yield
+-        for name, calls in function_calls.items():
+-            function = getattr(libudev, name)
+-            function.assert_has_calls([mock.call(*c) for c in calls])
+-
+-
+ Node = namedtuple('Node', 'name value next')
+ 
+ 
+@@ -93,11 +66,11 @@ class LinkedList(object):
+ 
+ 
+ @contextmanager
+-def libudev_list(function, items):
++def libudev_list(libudev, function, items):
+     """
+     Mock a libudev linked list::
+ 
+-       with pytest.libudev_list('udev_device_get_tag_list_entry', ['foo', 'bar']):
++       with pytest.libudev_list(device._libudev, 'udev_device_get_tag_list_entry', ['foo', 'bar']):
+            assert list(device.tags) == ['foo', 'bar']
+ 
+     ``function`` is a string containing the name of the libudev function that
+@@ -107,7 +80,6 @@ def libudev_list(function, items):
+     the second the item value, or a single element, which is the item name.
+     The item value is ``None`` in this case.
+     """
+-    from pyudev._libudev import libudev
+     functions_to_patch = [function, 'udev_list_entry_get_next',
+                           'udev_list_entry_get_name',
+                           'udev_list_entry_get_value']
+@@ -121,7 +93,7 @@ def libudev_list(function, items):
+         yield
+ 
+ 
+-EXPOSED_FUNCTIONS = [calls_to_libudev, libudev_list]
++EXPOSED_FUNCTIONS = [libudev_list]
+ 
+ 
+ def pytest_namespace():
+diff -purN pyudev-0.16.1.orig/tests/test_core.py pyudev-0.16.1/tests/test_core.py
+--- pyudev-0.16.1.orig/tests/test_core.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/tests/test_core.py	2014-12-10 15:49:59.426053645 -0500
+@@ -23,10 +23,9 @@ import random
+ import syslog
+ 
+ import pytest
+-from mock import sentinel
++import mock
+ 
+ from pyudev import udev_version
+-from pyudev._libudev import libudev
+ 
+ 
+ def test_udev_version():
+@@ -57,15 +56,21 @@ class TestContext(object):
+         assert syslog.LOG_EMERG <= context.log_priority <= syslog.LOG_DEBUG
+ 
+     def test_log_priority_get_mock(self, context):
+-        calls = {'udev_get_log_priority': [(context,)]}
+-        with pytest.calls_to_libudev(calls):
+-            libudev.udev_get_log_priority.return_value = sentinel.log_priority
+-            assert context.log_priority is sentinel.log_priority
++        spec = lambda c: None
++        funcname = 'udev_get_log_priority'
++        with mock.patch.object(context._libudev, funcname,
++                               autospec=spec) as func:
++            func.return_value = mock.sentinel.log_priority
++            assert context.log_priority is mock.sentinel.log_priority
++            func.assert_called_once_with(context)
+ 
+     def test_log_priority_set_mock(self, context):
+-        calls = {'udev_set_log_priority': [(context, sentinel.log_priority)]}
+-        with pytest.calls_to_libudev(calls):
+-            context.log_priority = sentinel.log_priority
++        spec = lambda c, p: None
++        funcname = 'udev_set_log_priority'
++        with mock.patch.object(context._libudev, funcname,
++                               autospec=spec) as func:
++            context.log_priority = mock.sentinel.log_priority
++            func.assert_called_once_with(context, mock.sentinel.log_priority)
+ 
+     def test_log_priority_roundtrip(self, context):
+         # FIXME: This adds UDEV_LOG properties?!
+diff -purN pyudev-0.16.1.orig/tests/test_device.py pyudev-0.16.1/tests/test_device.py
+--- pyudev-0.16.1.orig/tests/test_device.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/tests/test_device.py	2014-12-10 15:49:59.426053645 -0500
+@@ -30,7 +30,7 @@ from itertools import count
+ from datetime import timedelta
+ 
+ import pytest
+-from mock import sentinel
++import mock
+ 
+ from pyudev import (Device,
+                     DeviceNotFoundAtPathError,
+@@ -38,7 +38,6 @@ from pyudev import (Device,
+                     DeviceNotFoundByNumberError,
+                     DeviceNotFoundInEnvironmentError)
+ from pyudev.device import Attributes, Tags
+-from pyudev._libudev import libudev
+ 
+ 
+ with_device_data = pytest.mark.parametrize(
+@@ -228,29 +227,40 @@ class TestDevice(object):
+ 
+     @with_devices
+     def test_find_parent_no_devtype_mock(self, device):
+-        calls = {'udev_device_get_parent_with_subsystem_devtype':
+-                 [(device, b'subsystem', None)],
+-                 'udev_device_ref': [(sentinel.parent_device,)]}
+-        with pytest.calls_to_libudev(calls):
+-            f = libudev.udev_device_get_parent_with_subsystem_devtype
+-            f.return_value = sentinel.parent_device
+-            libudev.udev_device_ref.return_value = sentinel.ref_device
+-            parent = device.find_parent('subsystem')
+-            assert isinstance(parent, Device)
+-            assert parent._as_parameter_ is sentinel.ref_device
++        funcname = 'udev_device_get_parent_with_subsystem_devtype'
++        spec = lambda d, s, t: None
++        with mock.patch.object(device._libudev, funcname,
++                               autospec=spec) as get_parent:
++            get_parent.return_value = mock.sentinel.parent_device
++            funcname = 'udev_device_ref'
++            spec = lambda d: None
++            with mock.patch.object(device._libudev, funcname,
++                                   autospec=spec) as device_ref:
++                device_ref.return_value = mock.sentinel.referenced_device
++                parent = device.find_parent('subsystem')
++                assert isinstance(parent, Device)
++                assert parent._as_parameter_ is mock.sentinel.referenced_device
++                get_parent.assert_called_once_with(device, b'subsystem', None)
++                device_ref.assert_called_once_with(mock.sentinel.parent_device)
+ 
+     @with_devices
+     def test_find_parent_with_devtype_mock(self, device):
+-        calls = {'udev_device_get_parent_with_subsystem_devtype':
+-                 [(device, b'subsystem', b'devtype')],
+-                 'udev_device_ref': [(sentinel.parent_device,)]}
+-        with pytest.calls_to_libudev(calls):
+-            f = libudev.udev_device_get_parent_with_subsystem_devtype
+-            f.return_value = sentinel.parent_device
+-            libudev.udev_device_ref.return_value = sentinel.ref_device
+-            parent = device.find_parent('subsystem', 'devtype')
+-            assert isinstance(parent, Device)
+-            assert parent._as_parameter_ is sentinel.ref_device
++        funcname = 'udev_device_get_parent_with_subsystem_devtype'
++        spec = lambda d, s, t: None
++        with mock.patch.object(device._libudev, funcname,
++                               autospec=spec) as get_parent:
++            get_parent.return_value = mock.sentinel.parent_device
++            funcname = 'udev_device_ref'
++            spec = lambda d: None
++            with mock.patch.object(device._libudev, funcname,
++                                   autospec=spec) as device_ref:
++                device_ref.return_value = mock.sentinel.referenced_device
++                parent = device.find_parent('subsystem', 'devtype')
++                assert isinstance(parent, Device)
++                assert parent._as_parameter_ is mock.sentinel.referenced_device
++                get_parent.assert_called_once_with(
++                    device, b'subsystem', b'devtype')
++                device_ref.assert_called_once_with(mock.sentinel.parent_device)
+ 
+     @with_devices
+     def test_traverse(self, device):
+@@ -320,10 +330,13 @@ class TestDevice(object):
+     @pytest.mark.udev_version('>= 165')
+     @with_devices
+     def test_is_initialized_mock(self, device):
+-        calls = {'udev_device_get_is_initialized': [(device,)]}
+-        with pytest.calls_to_libudev(calls):
+-            libudev.udev_device_get_is_initialized.return_value = False
++        funcname = 'udev_device_get_is_initialized'
++        spec = lambda d: None
++        with mock.patch.object(device._libudev, funcname,
++                               autospec=spec) as func:
++            func.return_value = False
+             assert not device.is_initialized
++            func.assert_called_once_with(device)
+ 
+     @pytest.mark.udev_version('>= 165')
+     @with_devices
+@@ -333,10 +346,13 @@ class TestDevice(object):
+     @pytest.mark.udev_version('>= 165')
+     @with_devices
+     def test_time_since_initialized_mock(self, device):
+-        calls = {'udev_device_get_usec_since_initialized': [(device,)]}
+-        with pytest.calls_to_libudev(calls):
+-            libudev.udev_device_get_usec_since_initialized.return_value = 100
++        funcname = 'udev_device_get_usec_since_initialized'
++        spec = lambda d: None
++        with mock.patch.object(device._libudev, funcname,
++                               autospec=spec) as func:
++            func.return_value = 100
+             assert device.time_since_initialized.microseconds == 100
++            func.assert_called_once_with(device)
+ 
+     @with_device_data
+     def test_links(self, context, device, device_data):
+@@ -350,11 +366,16 @@ class TestDevice(object):
+ 
+     @with_devices
+     def test_action_mock(self, device):
+-        calls = {'udev_device_get_action': [(device,)]}
+-        with pytest.calls_to_libudev(calls):
+-            libudev.udev_device_get_action.return_value = b'spam'
++        funcname = 'udev_device_get_action'
++        spec = lambda d: None
++        with mock.patch.object(device._libudev, funcname,
++                               autospec=spec) as func:
++            func.return_value = b'spam'
+             assert device.action == 'spam'
++            func.assert_called_once_with(device)
++            func.reset_mock()
+             assert pytest.is_unicode_string(device.action)
++            func.assert_called_once_with(device)
+ 
+     @with_devices
+     @pytest.mark.seqnum
+@@ -499,12 +520,12 @@ class TestAttributes(object):
+     @with_devices
+     def test_iteration_mock(self, device):
+         attributes = [b'spam', b'eggs']
+-        get_sysattr_list = 'udev_device_get_sysattr_list_entry'
+-        with pytest.libudev_list(get_sysattr_list, attributes):
++        funcname = 'udev_device_get_sysattr_list_entry'
++        with pytest.libudev_list(device._libudev, funcname, attributes):
+             attrs = list(device.attributes)
+             assert attrs == ['spam', 'eggs']
+-            f = libudev.udev_device_get_sysattr_list_entry
+-            f.assert_called_with(device)
++            func = device._libudev.udev_device_get_sysattr_list_entry
++            func.assert_called_with(device)
+ 
+     @with_device_data
+     def test_contains(self, device, device_data):
+@@ -570,12 +591,13 @@ class TestTags(object):
+ 
+     @with_devices
+     def test_iteration_mock(self, device):
+-        with pytest.libudev_list('udev_device_get_tags_list_entry',
++        funcname = 'udev_device_get_tags_list_entry'
++        with pytest.libudev_list(device._libudev, funcname,
+                                  [b'spam', b'eggs']):
+             tags = list(device.tags)
+             assert tags == ['spam', 'eggs']
+-            f = libudev.udev_device_get_tags_list_entry
+-            f.assert_called_with(device)
++            func = device._libudev.udev_device_get_tags_list_entry
++            func.assert_called_once_with(device)
+ 
+     @with_device_data
+     def test_contains(self, device, device_data):
+@@ -590,7 +612,21 @@ class TestTags(object):
+         """
+         Test that ``udev_device_has_tag`` is called if available.
+         """
+-        calls = {'udev_device_has_tag': [(device, b'foo')]}
+-        with pytest.calls_to_libudev(calls):
+-            libudev.udev_device_has_tag.return_value = 1
++        funcname = 'udev_device_has_tag'
++        spec = lambda d, t: None
++        with mock.patch.object(device._libudev, funcname,
++                               autospec=spec) as func:
++            func.return_value = 1
+             assert 'foo' in device.tags
++            func.assert_called_once_with(device, b'foo')
++
++
++def test_garbage():
++    """
++    Make sure that all the device tests create no uncollectable objects.
++
++    This test must stick at the bottom of this test file to make sure that
++    ``py.test`` always executes it at last.
++    """
++    import gc
++    assert not gc.garbage
+diff -purN pyudev-0.16.1.orig/tests/test_enumerate.py pyudev-0.16.1/tests/test_enumerate.py
+--- pyudev-0.16.1.orig/tests/test_enumerate.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/tests/test_enumerate.py	2014-12-10 15:49:59.426053645 -0500
+@@ -114,10 +114,13 @@ class TestEnumerator(object):
+     @pytest.mark.udev_version('>= 154')
+     def test_match_tag_mock(self, context):
+         enumerator = context.list_devices()
+-        calls = {'udev_enumerate_add_match_tag': [(enumerator, b'spam')]}
+-        with pytest.calls_to_libudev(calls):
++        funcname = 'udev_enumerate_add_match_tag'
++        spec = lambda e, t: None
++        with mock.patch.object(enumerator._libudev, funcname,
++                               autospec=spec) as func:
+             retval = enumerator.match_tag('spam')
+             assert retval is enumerator
++            func.assert_called_with(enumerator, b'spam')
+ 
+     @pytest.mark.udev_version('>= 154')
+     def test_match_tag(self, context):
+@@ -140,9 +143,13 @@ class TestEnumerator(object):
+     @pytest.mark.udev_version('>= 165')
+     def test_match_is_initialized_mock(self, context):
+         enumerator = context.list_devices()
+-        calls = {'udev_enumerate_add_match_is_initialized': [(enumerator,)]}
+-        with pytest.calls_to_libudev(calls):
+-            enumerator.match_is_initialized()
++        funcname = 'udev_enumerate_add_match_is_initialized'
++        spec = lambda e: None
++        with mock.patch.object(enumerator._libudev, funcname,
++                               autospec=spec) as func:
++            retval = enumerator.match_is_initialized()
++            assert retval is enumerator
++            func.assert_called_with(enumerator)
+ 
+     def test_combined_matches_of_same_type(self, context):
+         """
+diff -purN pyudev-0.16.1.orig/tests/test_libudev.py pyudev-0.16.1/tests/test_libudev.py
+--- pyudev-0.16.1.orig/tests/test_libudev.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/tests/test_libudev.py	2014-12-10 15:49:59.426053645 -0500
+@@ -24,9 +24,7 @@ import ctypes
+ 
+ import pytest
+ 
+-from pyudev import _libudev as binding
+-
+-libudev = binding.libudev
++from pyudev import _libudev
+ 
+ 
+ WRAPPER_BLACKLIST_PATTERNS = [
+@@ -83,7 +81,7 @@ def _pointer_to_ctypes(pointer):
+ 
+ TYPE_CONVERTER = {
+     'FundamentalType': lambda t: FUNDAMENTAL_TYPES[t.name],
+-    'Struct': lambda s: getattr(binding, s.name),
++    'Struct': lambda s: getattr(_libudev, s.name),
+     'PointerType': _pointer_to_ctypes,
+     # const qualifiers are ignored in ctypes
+     'CvQualifiedType': lambda t: _to_ctypes(t.type),
+@@ -105,8 +103,7 @@ class LibudevFunction(object):
+     def name(self):
+         return self.declaration.name
+ 
+-    @property
+-    def wrapper(self):
++    def get_wrapper(self, libudev):
+         return getattr(libudev, self.name)
+ 
+     @property
+@@ -128,23 +125,32 @@ def pytest_funcarg__libudev_function(req
+     return LibudevFunction(function)
+ 
+ 
+-def test_arguments(libudev_function):
+-    assert libudev_function.wrapper.argtypes == libudev_function.argument_types
++def pytest_funcarg__libudev(request):
++    return _libudev.load_udev_library()
++
++
++def pytest_funcarg__function(request):
++    libudev = request.getfuncargvalue('libudev')
++    libudev_function = request.getfuncargvalue('libudev_function')
++    return libudev_function.get_wrapper(libudev)
++
++
++def test_arguments(function, libudev_function):
++    assert function.argtypes == libudev_function.argument_types
+ 
+ 
+-def test_return_type(libudev_function):
++def test_return_type(function, libudev_function):
+     # Ignore the return type of *_unref() functions. The return value of these
+     # functions is unused in pyudev, so it doesn't need to be wrapped.
+     restype = (libudev_function.return_type
+                if not libudev_function.name.endswith('_unref')
+                else None)
+-    assert libudev_function.wrapper.restype == restype
++    assert function.restype == restype
+ 
+ 
+-def test_error_checker(libudev_function):
++def test_error_checker(function, libudev_function):
+     name = libudev_function.name
+-    if name in binding.ERROR_CHECKERS:
+-        assert libudev_function.wrapper.errcheck == \
+-                binding.ERROR_CHECKERS[name]
++    if name in _libudev.ERROR_CHECKERS:
++        assert function.errcheck == _libudev.ERROR_CHECKERS[name]
+     else:
+         pytest.skip('{0} has no error checker'.format(name))
+diff -purN pyudev-0.16.1.orig/tests/test_monitor.py pyudev-0.16.1/tests/test_monitor.py
+--- pyudev-0.16.1.orig/tests/test_monitor.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/tests/test_monitor.py	2014-12-10 15:49:59.427053661 -0500
+@@ -25,10 +25,9 @@ from contextlib import contextmanager
+ from select import select
+ 
+ import pytest
+-from mock import Mock, sentinel, patch
++import mock
+ 
+ from pyudev import Monitor, MonitorObserver, Device
+-from pyudev._libudev import libudev
+ 
+ # many tests just consist of some monkey patching to test, that the Monitor
+ # class actually calls out to udev, correctly passing arguments and handling
+@@ -75,16 +74,20 @@ class TestMonitor(object):
+         assert not monitor.started
+ 
+     def test_from_netlink_source_udev_mock(self, context):
+-        calls = {'udev_monitor_new_from_netlink':
+-                 [(context, b'udev'), (context, b'udev')]}
+-        with pytest.calls_to_libudev(calls):
+-            libudev.udev_monitor_new_from_netlink.return_value = sentinel.monitor
++        funcname = 'udev_monitor_new_from_netlink'
++        spec = lambda c, s: None
++        with mock.patch.object(context._libudev, funcname,
++                               autospec=spec) as func:
++            func.return_value = mock.sentinel.monitor
+             monitor = Monitor.from_netlink(context)
+-            assert monitor._as_parameter_ is sentinel.monitor
++            assert monitor._as_parameter_ is mock.sentinel.monitor
+             assert not monitor.started
++            func.assert_called_once_with(context, b'udev')
++            func.reset_mock()
+             monitor = Monitor.from_netlink(context, 'udev')
+-            assert monitor._as_parameter_ is sentinel.monitor
++            assert monitor._as_parameter_ is mock.sentinel.monitor
+             assert not monitor.started
++            func.assert_called_once_with(context, b'udev')
+ 
+     def test_from_netlink_source_kernel(self, context):
+         monitor = Monitor.from_netlink(context, source='kernel')
+@@ -92,22 +95,28 @@ class TestMonitor(object):
+         assert not monitor.started
+ 
+     def test_from_netlink_source_kernel_mock(self, context):
+-        calls = {'udev_monitor_new_from_netlink': [(context, b'kernel')]}
+-        with pytest.calls_to_libudev(calls):
+-            libudev.udev_monitor_new_from_netlink.return_value = sentinel.monitor
++        funcname = 'udev_monitor_new_from_netlink'
++        spec = lambda c, s: None
++        with mock.patch.object(context._libudev, funcname,
++                               autospec=spec) as func:
++            func.return_value = mock.sentinel.monitor
+             monitor = Monitor.from_netlink(context, 'kernel')
+-            assert monitor._as_parameter_ is sentinel.monitor
++            assert monitor._as_parameter_ is mock.sentinel.monitor
+             assert not monitor.started
++            func.assert_called_once_with(context, b'kernel')
+ 
+     def test_fileno(self, monitor):
+         # we can't do more than check that no exception is thrown
+         monitor.fileno()
+ 
+     def test_fileno_mock(self, monitor):
+-        calls = {'udev_monitor_get_fd': [(monitor,)]}
+-        with pytest.calls_to_libudev(calls):
+-            libudev.udev_monitor_get_fd.return_value = sentinel.fileno
+-            assert monitor.fileno() is sentinel.fileno
++        funcname = 'udev_monitor_get_fd'
++        spec = lambda m: None
++        with mock.patch.object(monitor._libudev, funcname,
++                               autospec=spec) as func:
++            func.return_value = mock.sentinel.fileno
++            assert monitor.fileno() is mock.sentinel.fileno
++            func.assert_called_once_with(monitor)
+ 
+     def test_filter_by_no_subsystem(self, monitor):
+         with pytest.raises(AttributeError):
+@@ -118,22 +127,33 @@ class TestMonitor(object):
+         monitor.filter_by('input')
+ 
+     def test_filter_by_subsystem_no_dev_type_mock(self, monitor):
+-        calls = {'udev_monitor_filter_add_match_subsystem_devtype':
+-                 [(monitor, b'input', None)],
+-                 'udev_monitor_filter_update': [(monitor,)]}
+-        with pytest.calls_to_libudev(calls):
+-            monitor.filter_by('input')
++        funcname = 'udev_monitor_filter_add_match_subsystem_devtype'
++        spec = lambda m, s, t: None
++        libudev = monitor._libudev
++        with mock.patch.object(libudev, funcname, autospec=spec) as match:
++            funcname = 'udev_monitor_filter_update'
++            spec = lambda m: None
++            with mock.patch.object(libudev, funcname, autospec=spec) as update:
++                monitor.filter_by('input')
++                match.assert_called_once_with(monitor, b'input', None)
++                update.assert_called_once_with(monitor)
+ 
+     def test_filter_by_subsystem_dev_type(self, monitor):
+         monitor.filter_by('input', b'usb_interface')
+         monitor.filter_by('input', 'usb_interface')
+ 
+     def test_filter_by_subsystem_dev_type_mock(self, monitor):
+-        calls = {'udev_monitor_filter_add_match_subsystem_devtype':
+-                 [(monitor, b'input', b'usb_interface')],
+-                 'udev_monitor_filter_update': [(monitor,)]}
+-        with pytest.calls_to_libudev(calls):
+-            monitor.filter_by('input', 'usb_interface')
++        funcname = 'udev_monitor_filter_add_match_subsystem_devtype'
++        spec = lambda m, s, t: None
++        libudev = monitor._libudev
++        with mock.patch.object(libudev, funcname, autospec=spec) as match:
++            funcname = 'udev_monitor_filter_update'
++            spec = lambda m: None
++            with mock.patch.object(libudev, funcname, autospec=spec) as update:
++                monitor.filter_by('input', 'usb_interface')
++                match.assert_called_once_with(monitor, b'input',
++                                              b'usb_interface')
++                update.assert_called_once_with(monitor)
+ 
+     @pytest.mark.udev_version('>= 154')
+     def test_filter_by_tag(self, monitor):
+@@ -141,10 +161,16 @@ class TestMonitor(object):
+ 
+     @pytest.mark.udev_version('>= 154')
+     def test_filter_by_tag_mock(self, monitor):
+-        calls = {'udev_monitor_filter_add_match_tag': [(monitor, b'eggs')],
+-                 'udev_monitor_filter_update': [(monitor,)]}
+-        with pytest.calls_to_libudev(calls):
+-            monitor.filter_by_tag('eggs')
++        funcname = 'udev_monitor_filter_add_match_tag'
++        spec = lambda m, t: None
++        libudev = monitor._libudev
++        with mock.patch.object(libudev, funcname, autospec=spec) as match:
++            funcname = 'udev_monitor_filter_update'
++            spec = lambda m: None
++            with mock.patch.object(libudev, funcname, autospec=spec) as update:
++                monitor.filter_by_tag('eggs')
++                match.assert_called_once_with(monitor, b'eggs')
++                update.assert_called_once_with(monitor)
+ 
+     def test_remove_filter(self, monitor):
+         """
+@@ -155,10 +181,15 @@ class TestMonitor(object):
+             monitor.remove_filter()
+ 
+     def test_remove_filter_mock(self, monitor):
+-        calls = {'udev_monitor_filter_remove': [(monitor,)],
+-                 'udev_monitor_filter_update': [(monitor,)]}
+-        with pytest.calls_to_libudev(calls):
+-            monitor.remove_filter()
++        funcname = 'udev_monitor_filter_remove'
++        libudev = monitor._libudev
++        spec = lambda m: None
++        with mock.patch.object(libudev, funcname, autospec=spec) as remove:
++            funcname = 'udev_monitor_filter_update'
++            with mock.patch.object(libudev, funcname, autospec=spec) as update:
++                monitor.remove_filter()
++                remove.assert_called_once_with(monitor)
++                update.assert_called_once_with(monitor)
+ 
+     def test_start_netlink_kernel_source(self, context):
+         monitor = Monitor.from_netlink(context, source='kernel')
+@@ -167,24 +198,31 @@ class TestMonitor(object):
+         assert monitor.started
+ 
+     def test_start_mock(self, monitor):
+-        calls = {'udev_monitor_enable_receiving': [(monitor,)]}
+-        with pytest.calls_to_libudev(calls):
++        funcname = 'udev_monitor_enable_receiving'
++        spec = lambda m: None
++        with mock.patch.object(monitor._libudev, funcname,
++                               autospec=spec) as func:
+             assert not monitor.started
+             monitor.start()
+             assert monitor.started
++            monitor.start()
++            func.assert_called_once_with(monitor)
+ 
+     def test_enable_receiving(self, monitor):
+         """
+         Test that enable_receiving() is deprecated and calls out to start().
+         """
+-        with patch.object(monitor, 'start') as start:
++        with mock.patch.object(monitor, 'start') as start:
+             pytest.deprecated_call(monitor.enable_receiving)
+             assert start.called
+ 
+     def test_set_receive_buffer_size_mock(self, monitor):
+-        calls = {'udev_monitor_set_receive_buffer_size': [(monitor, 1000)]}
+-        with pytest.calls_to_libudev(calls):
++        funcname = 'udev_monitor_set_receive_buffer_size'
++        spec = lambda m, s: None
++        with mock.patch.object(monitor._libudev, funcname,
++                               autospec=spec) as func:
+             monitor.set_receive_buffer_size(1000)
++            func.assert_called_once_with(monitor, 1000)
+ 
+     def test_set_receive_buffer_size_privilege_error(self, monitor):
+         with pytest.raises(EnvironmentError) as exc_info:
+@@ -224,8 +262,8 @@ class TestMonitor(object):
+         Test that Monitor.receive_device is deprecated and calls out to
+         _receive_device(), which in turn is tested by test_poll.
+         """
+-        with patch.object(monitor, '_receive_device') as receive_device:
+-            device = Mock(name='device')
++        with mock.patch.object(monitor, '_receive_device') as receive_device:
++            device = mock.Mock(name='device')
+             device.action = 'spam'
+             receive_device.return_value = device
+             event = pytest.deprecated_call(monitor.receive_device)
+diff -purN pyudev-0.16.1.orig/tests/test_observer.py pyudev-0.16.1/tests/test_observer.py
+--- pyudev-0.16.1.orig/tests/test_observer.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/tests/test_observer.py	2014-12-10 15:49:59.427053661 -0500
+@@ -19,10 +19,9 @@ from __future__ import (print_function,
+                         absolute_import)
+ 
+ import pytest
+-from mock import Mock
++import mock
+ 
+ from pyudev import Monitor, Device
+-from pyudev._libudev import libudev
+ 
+ 
+ def pytest_funcarg__monitor(request):
+@@ -101,15 +100,17 @@ class ObserverTestBase(object):
+     def test_events_fake_monitor(self, action, fake_monitor,
+                                  fake_monitor_device):
+         self.prepare_test(fake_monitor)
+-        event_callback = Mock(side_effect=self.stop_when_done)
+-        action_callback = Mock(side_effect=self.stop_when_done)
++        event_callback = mock.Mock(side_effect=self.stop_when_done)
++        action_callback = mock.Mock(side_effect=self.stop_when_done)
+         self.connect_signal(event_callback)
+         self.connect_signal(action_callback, action=action)
+-        calls = {'udev_device_get_action': [(fake_monitor_device,),
+-                                            (fake_monitor_device,)]}
+-        with pytest.calls_to_libudev(calls):
+-            libudev.udev_device_get_action.return_value = action.encode('ascii')
++        funcname = 'udev_device_get_action'
++        spec = lambda d: None
++        with mock.patch.object(fake_monitor_device._libudev, funcname,
++                               autospec=spec) as func:
++            func.return_value = action.encode('ascii')
+             self.start_event_loop(fake_monitor.trigger_event)
++            func.assert_called_with(fake_monitor_device)
+         event_callback.assert_called_with(action, fake_monitor_device)
+         action_callback.assert_called_with(fake_monitor_device)
+ 
+@@ -121,9 +122,9 @@ class ObserverTestBase(object):
+         monitor.start()
+         self.prepare_test(monitor)
+         # setup signal handlers
+-        event_callback = Mock(side_effect=self.stop_when_done)
+-        added_callback = Mock(side_effect=self.stop_when_done)
+-        removed_callback = Mock(side_effect=self.stop_when_done)
++        event_callback = mock.Mock(side_effect=self.stop_when_done)
++        added_callback = mock.Mock(side_effect=self.stop_when_done)
++        removed_callback = mock.Mock(side_effect=self.stop_when_done)
+         self.connect_signal(event_callback)
+         self.connect_signal(added_callback, action='add')
+         self.connect_signal(removed_callback, action='remove')
+diff -purN pyudev-0.16.1.orig/tests/test_util.py pyudev-0.16.1/tests/test_util.py
+--- pyudev-0.16.1.orig/tests/test_util.py	2012-08-01 15:25:48.000000000 -0400
++++ pyudev-0.16.1/tests/test_util.py	2014-12-10 15:49:59.427053661 -0500
+@@ -22,6 +22,7 @@ import sys
+ import errno
+ 
+ import pytest
++from mock import Mock
+ 
+ from pyudev import _util
+ 
+@@ -97,15 +98,15 @@ def test_string_to_bool_invalid_value():
+ 
+ 
+ def test_udev_list_iterate_no_entry():
+-    assert not list(_util.udev_list_iterate(None))
++    assert not list(_util.udev_list_iterate(Mock(), None))
+ 
+ 
+ def test_udev_list_iterate_mock():
+-    from pyudev._libudev import libudev
++    libudev = Mock(name='libudev')
+     items = [('spam', 'eggs'), ('foo', 'bar')]
+-    with pytest.libudev_list('udev_enumerate_get_list_entry', items):
++    with pytest.libudev_list(libudev, 'udev_enumerate_get_list_entry', items):
+         udev_list = libudev.udev_enumerate_get_list_entry()
+-        assert list(_util.udev_list_iterate(udev_list)) == [
++        assert list(_util.udev_list_iterate(libudev, udev_list)) == [
+             ('spam', 'eggs'), ('foo', 'bar')]
+ 
+ 

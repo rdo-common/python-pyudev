@@ -1,6 +1,6 @@
 Name:             python-pyudev
 Version:          0.16.1
-Release:          1%{?dist}
+Release:          2%{?dist}
 Summary:          A libudev binding
 
 License:          LGPLv2+
@@ -62,16 +62,21 @@ cp -a . %{py3dir}
 ( cd %{py3dir} && %{__python3} setup.py install --skip-build --root $RPM_BUILD_ROOT )
 
 %files
-%doc COPYING README.rst CHANGES.rst
+%license COPYING
+%doc README.rst CHANGES.rst
 %{python2_sitelib}/pyudev
 %{python2_sitelib}/pyudev-%{version}-*.egg-info
 
 %files -n python3-pyudev
-%doc COPYING README.rst CHANGES.rst
+%license COPYING
+%doc README.rst CHANGES.rst
 %{python3_sitelib}/pyudev
 %{python3_sitelib}/pyudev-%{version}-*.egg-info
 
 %changelog
+* Wed Jan 28 2015 David Shea <dshea@redhat.com> - 0.16-2
+- Use %%license for the license file
+
 * Wed Dec 10 2014 David Shea <dshea@redhat.com> - 0.16-1
 - Update to pyudev-0.16.1 (#880644)
 - Apply a patch from upstream to remove a global reference to libudev (#1170337)

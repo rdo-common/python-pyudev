@@ -1,12 +1,17 @@
 Name:             python-pyudev
 Version:          0.16.1
-Release:          2%{?dist}
+Release:          3%{?dist}
 Summary:          A libudev binding
 
 License:          LGPLv2+
 URL:              http://pypi.python.org/pypi/pyudev
 Source0:          http://pypi.python.org/packages/source/p/pyudev/pyudev-%{version}.tar.gz
+
+# Based on 0113ccdbba1aef69f3f890fd72622f24d79d907a in github.com/lunaryorn/pyudev.git
 Patch0:           pyudev-0.16.1-global-libudev.patch
+
+# Based on af9ba7b27478274a2f5f9676de662b079a3a8c22 in github.com/dashea/pyudev.git
+Patch1:           pyudev-eintr-retry.patch
 
 BuildArch:        noarch
 
@@ -43,23 +48,38 @@ versions of udev as found on dated Linux systems may work, but are not
 officially supported.
 
 %prep
-%setup -q -n pyudev-%{version}
-%patch0 -p1 -b .global-libudev
+%setup -qc
+mv pyudev-%{version} python2
 
+pushd python2
 rm -rf pyudev.egg-info
 
-rm -rf %{py3dir}
-cp -a . %{py3dir}
+%patch0 -p1 -b .global-libudev
+%patch1 -p1 -b .eintr-retry
+
+# Copy common doc files to the top directory
+cp -pr COPYING README.rst CHANGES.rst ../
+popd
+
+cp -a python2 python3
 
 %build
+pushd python2
 %{__python2} setup.py build 
+popd
 
-( cd %{py3dir} && %{__python3} setup.py build )
+pushd python3
+%{__python3} setup.py build
+popd
 
 %install
-%{__python} setup.py install --skip-build --root $RPM_BUILD_ROOT
+pushd python2
+%{__python2} setup.py install --skip-build --root $RPM_BUILD_ROOT
+popd
 
-( cd %{py3dir} && %{__python3} setup.py install --skip-build --root $RPM_BUILD_ROOT )
+pushd python3
+%{__python3} setup.py install --skip-build --root $RPM_BUILD_ROOT
+popd
 
 %files
 %license COPYING
@@ -74,10 +94,14 @@ cp -a . %{py3dir}
 %{python3_sitelib}/pyudev-%{version}-*.egg-info
 
 %changelog
-* Wed Jan 28 2015 David Shea <dshea@redhat.com> - 0.16-2
+* Fri Jun 12 2015 David Shea <dshea@redhat.com> - 0.16.1-3
+- Retry interrupted system calls (#1230773)
+- Rearrange the build process to match current packaging recommendations
+
+* Wed Jan 28 2015 David Shea <dshea@redhat.com> - 0.16.1-2
 - Use %%license for the license file
 
-* Wed Dec 10 2014 David Shea <dshea@redhat.com> - 0.16-1
+* Wed Dec 10 2014 David Shea <dshea@redhat.com> - 0.16.1-1
 - Update to pyudev-0.16.1 (#880644)
 - Apply a patch from upstream to remove a global reference to libudev (#1170337)
 

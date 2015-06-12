@@ -1,0 +1,102 @@
+diff -purN pyudev-0.16.1.orig/pyudev/monitor.py pyudev-0.16.1/pyudev/monitor.py
+--- pyudev-0.16.1.orig/pyudev/monitor.py	2015-06-12 09:36:21.427469657 -0400
++++ pyudev-0.16.1/pyudev/monitor.py	2015-06-12 09:37:05.483447685 -0400
+@@ -34,7 +34,7 @@ import select
+ from threading import Thread
+ from contextlib import closing
+ 
+-from pyudev._util import ensure_byte_string
++from pyudev._util import ensure_byte_string, eintr_retry_call
+ 
+ from pyudev.core import Device
+ 
+@@ -337,7 +337,7 @@ class Monitor(object):
+ 
+         .. versionadded:: 0.16
+         """
+-        rlist, _, _ = select.select([self], [], [], timeout)
++        rlist, _, _ = eintr_retry_call(select.select, [self], [], [], timeout)
+         if self in rlist:
+             return self._receive_device()
+         else:
+@@ -407,7 +407,7 @@ class Monitor(object):
+         with closing(select.epoll()) as notifier:
+             notifier.register(self, select.EPOLLIN)
+             while True:
+-                events = notifier.poll()
++                events = eintr_retry_call(notifier.poll)
+                 for event in events:
+                     device = self._receive_device()
+                     yield device.action, device
+@@ -503,14 +503,14 @@ class MonitorObserver(Thread):
+             # and on the monitor
+             notifier.register(self.monitor, select.EPOLLIN)
+             while True:
+-                for fd, _ in notifier.poll():
++                for fd, _ in eintr_retry_call(notifier.poll):
+                     if fd == self._stop_event_source:
+                         # in case of a stop event, close our pipe side, and
+                         # return from the thread
+                         os.close(self._stop_event_source)
+                         return
+                     else:
+-                        device = self.monitor.poll(timeout=0)
++                        device = eintr_retry_call(self.monitor.poll, timeout=0)
+                         if device:
+                             self._callback(device)
+ 
+@@ -530,7 +530,7 @@ class MonitorObserver(Thread):
+             return
+         try:
+             # emit a stop event to the thread
+-            os.write(self._stop_event_sink, b'\x01')
++            eintr_retry_call(os.write, self._stop_event_sink, b'\x01')
+         finally:
+             # close the out-of-thread side of the pipe
+             os.close(self._stop_event_sink)
+diff -purN pyudev-0.16.1.orig/pyudev/_util.py pyudev-0.16.1/pyudev/_util.py
+--- pyudev-0.16.1.orig/pyudev/_util.py	2015-06-12 09:36:21.428469657 -0400
++++ pyudev-0.16.1/pyudev/_util.py	2015-06-12 09:36:45.923457440 -0400
+@@ -32,6 +32,7 @@ from __future__ import (print_function,
+ import os
+ import sys
+ import stat
++import errno
+ 
+ 
+ if sys.version_info[0] == 2:
+@@ -141,3 +142,34 @@ def get_device_type(filename):
+         return 'block'
+     else:
+         raise ValueError('not a device file: {0!r}'.format(filename))
++
++
++def eintr_retry_call(func, *args, **kwargs):
++    """
++    Handle interruptions to an interruptible system call.
++
++    Run an interruptible system call in a loop and retry if it raises EINTR.
++    The signal calls that my raise EINTR prior to Python 3.5 are listed in
++    PEP 0475.  Any calls to these functions must be wrapped in eintr_retry_call
++    in order to handle EINTR returns in older versions of Python.
++
++    This function is based on _eintr_retry_call in python's subprocess.py.
++    """
++
++    # select.error inherits from Exception instead of OSError in Python 2
++    import select
++
++    while True:
++        try:
++            return func(*args, **kwargs)
++        except (OSError, IOError, select.error) as e:
++            # If this is not an IOError or OSError, it's the old select.error
++            # type, which means that the errno is only accessible via subscript
++            if isinstance(e, (OSError, IOError)):
++                error_code = e.errno
++            else:
++                error_code = e[0]
++
++            if error_code == errno.EINTR:
++                continue
++            raise

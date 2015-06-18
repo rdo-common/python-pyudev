@@ -1,6 +1,6 @@
 Name:             python-pyudev
 Version:          0.16.1
-Release:          3%{?dist}
+Release:          4%{?dist}
 Summary:          A libudev binding
 
 License:          LGPLv2+
@@ -94,6 +94,9 @@ popd
 %{python3_sitelib}/pyudev-%{version}-*.egg-info
 
 %changelog
+* Thu Jun 18 2015 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0.16.1-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_23_Mass_Rebuild
+
 * Fri Jun 12 2015 David Shea <dshea@redhat.com> - 0.16.1-3
 - Retry interrupted system calls (#1230773)
 - Rearrange the build process to match current packaging recommendations

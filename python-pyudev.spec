@@ -1,22 +1,16 @@
-Name:             python-pyudev
-Version:          0.16.1
-Release:          4%{?dist}
+%global srcname pyudev
+Name:             python-%{srcname}
+Version:          0.17
+Release:          1%{?dist}
 Summary:          A libudev binding
 
 License:          LGPLv2+
 URL:              http://pypi.python.org/pypi/pyudev
-Source0:          http://pypi.python.org/packages/source/p/pyudev/pyudev-%{version}.tar.gz
+Source0:          http://pypi.python.org/packages/source/p/%{srcname}/%{srcname}-%{version}.tar.gz
 
-# Based on 0113ccdbba1aef69f3f890fd72622f24d79d907a in github.com/lunaryorn/pyudev.git
-Patch0:           pyudev-0.16.1-global-libudev.patch
-
-# Based on af9ba7b27478274a2f5f9676de662b079a3a8c22 in github.com/dashea/pyudev.git
-Patch1:           pyudev-eintr-retry.patch
+Patch0:           0001-Do-not-install-the-tests-as-a-module.patch
 
 BuildArch:        noarch
-
-BuildRequires:    python2-devel
-BuildRequires:    python-setuptools
 
 %description
 pyudev is a LGPL licensed, pure Python binding for libudev, the device
@@ -30,8 +24,29 @@ PyPy 1.5 or newer.  It is tested against udev 151 or newer, earlier
 versions of udev as found on dated Linux systems may work, but are not
 officially supported.
 
-%package -n python3-pyudev
+%package -n python2-%{srcname}
 Summary:          A libudev binding
+%{?python_provide:%python_provide python2-%{srcname}}
+
+BuildRequires:    python2-devel
+BuildRequires:    python-setuptools
+
+%description -n python2-%{srcname}
+pyudev is a LGPL licensed, pure Python binding for libudev, the device
+and hardware management and information library for Linux.  It supports
+almost all libudev functionality, you can enumerate devices, query device
+properties and attributes or monitor devices, including asynchronous
+monitoring with threads, or within the event loops of Qt, Glib or wxPython.
+
+The binding supports CPython 2 (2.6 or newer) and 3 (3.1 or newer), and
+PyPy 1.5 or newer.  It is tested against udev 151 or newer, earlier
+versions of udev as found on dated Linux systems may work, but are not
+officially supported.
+
+%package -n python3-%{srcname}
+Summary:          A libudev binding
+%{?python_provide:%python_provide python2-%{srcname}}
+
 BuildRequires:    python3-devel
 BuildRequires:    python3-setuptools
 
@@ -48,52 +63,39 @@ versions of udev as found on dated Linux systems may work, but are not
 officially supported.
 
 %prep
-%setup -qc
-mv pyudev-%{version} python2
-
-pushd python2
+%autosetup -n %{srcname}-%{version}
 rm -rf pyudev.egg-info
 
-%patch0 -p1 -b .global-libudev
-%patch1 -p1 -b .eintr-retry
-
-# Copy common doc files to the top directory
-cp -pr COPYING README.rst CHANGES.rst ../
-popd
-
-cp -a python2 python3
-
 %build
-pushd python2
-%{__python2} setup.py build 
-popd
-
-pushd python3
-%{__python3} setup.py build
-popd
+%py2_build
+%py3_build
 
 %install
-pushd python2
-%{__python2} setup.py install --skip-build --root $RPM_BUILD_ROOT
-popd
+%py2_install
+%py3_install
 
-pushd python3
-%{__python3} setup.py install --skip-build --root $RPM_BUILD_ROOT
-popd
-
-%files
+%files -n python2-%{srcname}
 %license COPYING
 %doc README.rst CHANGES.rst
 %{python2_sitelib}/pyudev
 %{python2_sitelib}/pyudev-%{version}-*.egg-info
 
-%files -n python3-pyudev
+%files -n python3-%{srcname}
 %license COPYING
 %doc README.rst CHANGES.rst
 %{python3_sitelib}/pyudev
 %{python3_sitelib}/pyudev-%{version}-*.egg-info
 
 %changelog
+* Mon Sep 14 2015 David Shea <dshea@redhat.com> - 0.17.1-1
+- Really start the monitor on pyudev.Monitor.poll()
+- Force non-blocking IO in pyudev.Monitor to avoid blocking on receiving the device
+- Set proper flags on pipe fs
+- Handle irregular polling events properly
+- Rename MonitorObserver GUI classes and deprecate the old ones
+- Remove patches for #1170337 and #1230773 that are now part of upstream
+- Switch to new packaging guidelines which renames python-pyudev to python2-pyudev
+
 * Thu Jun 18 2015 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 0.16.1-4
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_23_Mass_Rebuild
 

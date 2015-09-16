@@ -1,7 +1,7 @@
 %global srcname pyudev
 Name:             python-%{srcname}
 Version:          0.17
-Release:          1%{?dist}
+Release:          2%{?dist}
 Summary:          A libudev binding
 
 License:          LGPLv2+
@@ -45,7 +45,7 @@ officially supported.
 
 %package -n python3-%{srcname}
 Summary:          A libudev binding
-%{?python_provide:%python_provide python2-%{srcname}}
+%{?python_provide:%python_provide python3-%{srcname}}
 
 BuildRequires:    python3-devel
 BuildRequires:    python3-setuptools
@@ -87,6 +87,9 @@ rm -rf pyudev.egg-info
 %{python3_sitelib}/pyudev-%{version}-*.egg-info
 
 %changelog
+* Wed Sep 15 2015 David Shea <dshea@redhat.com> - 0.17.1-2
+- Fix a typo in the python3-pyudev Provides
+
 * Mon Sep 14 2015 David Shea <dshea@redhat.com> - 0.17.1-1
 - Really start the monitor on pyudev.Monitor.poll()
 - Force non-blocking IO in pyudev.Monitor to avoid blocking on receiving the device

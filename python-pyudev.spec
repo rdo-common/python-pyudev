@@ -1,7 +1,7 @@
 %global srcname pyudev
 Name:             python-%{srcname}
 Version:          0.17
-Release:          2%{?dist}
+Release:          3%{?dist}
 Summary:          A libudev binding
 
 License:          LGPLv2+
@@ -87,6 +87,9 @@ rm -rf pyudev.egg-info
 %{python3_sitelib}/pyudev-%{version}-*.egg-info
 
 %changelog
+* Wed Nov 04 2015 Robert Kuska <rkuska@redhat.com> - 0.17-3
+- Rebuilt for Python3.5 rebuild
+
 * Wed Sep 15 2015 David Shea <dshea@redhat.com> - 0.17.1-2
 - Fix a typo in the python3-pyudev Provides
 

@@ -1,7 +1,7 @@
 %global srcname pyudev
 Name:             python-%{srcname}
 Version:          0.17
-Release:          3%{?dist}
+Release:          4%{?dist}
 Summary:          A libudev binding
 
 License:          LGPLv2+
@@ -31,6 +31,13 @@ Summary:          A libudev binding
 BuildRequires:    python2-devel
 BuildRequires:    python-setuptools
 
+# Dependencies for libraries loaded through ctypes
+# glibc is needed for pipe2. This is not needed in the python3 package.
+Requires:         glibc
+
+# Needed for libudev
+Requires:         systemd-libs
+
 %description -n python2-%{srcname}
 pyudev is a LGPL licensed, pure Python binding for libudev, the device
 and hardware management and information library for Linux.  It supports
@@ -43,6 +50,54 @@ PyPy 1.5 or newer.  It is tested against udev 151 or newer, earlier
 versions of udev as found on dated Linux systems may work, but are not
 officially supported.
 
+%package -n python2-%{srcname}-glib
+Summary:          GLib integration for pyudev
+
+Requires:         pygobject2
+Requires:         python2-%{srcname} = %{version}-%{release}
+
+%description -n python2-%{srcname}-glib
+GLib integration for pyudev.
+
+This package provides a module pyudev.glib that contains classes for
+integrating a pyudev monitor with the GLib main loop.
+
+%package -n python2-%{srcname}-qt4
+Summary:          Qt4 integration for pyudev
+
+Requires:         PyQt4
+Requires:         python2-%{srcname} = %{version}-%{release}
+
+%description -n python2-%{srcname}-qt4
+Qt4 integration for pyudev.
+
+This package provides a module pyudev.pyqt4 that contains classes for
+integrating a pyudev monitor with the Qt4 main loop.
+
+%package -n python2-%{srcname}-pyside
+Summary:           PySide integration for pyudev
+
+Requires:          python-pyside
+Requires:          python2-%{srcname} = %{version}-%{release}
+
+%description -n python2-%{srcname}-pyside
+PySide integration for pyudev.
+
+This package provides a module pyudev.pyside that contains classes for
+integrating a pyudev monitor with the PySide main loop.
+
+%package -n python2-%{srcname}-wx
+Summary:            wxPython integration for pyudev
+
+Requires:           wxPython
+Requires:           python2-%{srcname} = %{version}-%{release}
+
+%description -n python2-%{srcname}-wx
+wxPython integration for pyudev.
+
+This package provides a module pyudev.wx that contains classes for
+integrating a pyudev montior with the wxPython main loop.
+
 %package -n python3-%{srcname}
 Summary:          A libudev binding
 %{?python_provide:%python_provide python3-%{srcname}}
@@ -50,7 +105,10 @@ Summary:          A libudev binding
 BuildRequires:    python3-devel
 BuildRequires:    python3-setuptools
 
-%description -n python3-pyudev
+# Needed for libudev, loaded through ctypes
+Requires:         systemd-libs
+
+%description -n python3-%{srcname}
 pyudev is a LGPL licensed, pure Python binding for libudev, the device
 and hardware management and information library for Linux.  It supports
 almost all libudev functionality, you can enumerate devices, query device
@@ -61,6 +119,18 @@ The binding supports CPython 2 (2.6 or newer) and 3 (3.1 or newer), and
 PyPy 1.5 or newer.  It is tested against udev 151 or newer, earlier
 versions of udev as found on dated Linux systems may work, but are not
 officially supported.
+
+%package -n python3-%{srcname}-qt4
+Summary:          Qt4 integration for pyudev
+
+Requires:         python3-PyQt4
+Requires:         python3-%{srcname} = %{version}-%{release}
+
+%description -n python3-%{srcname}-qt4
+Qt4 integration for pyudev.
+
+This package provides a module pyudev.pyqt4 that contains classes for
+integrating a pyudev monitor with the Qt4 main loop.
 
 %prep
 %autosetup -n %{srcname}-%{version}
@@ -77,16 +147,53 @@ rm -rf pyudev.egg-info
 %files -n python2-%{srcname}
 %license COPYING
 %doc README.rst CHANGES.rst
-%{python2_sitelib}/pyudev
+%{python2_sitelib}/pyudev/
 %{python2_sitelib}/pyudev-%{version}-*.egg-info
+%exclude %{python2_sitelib}/pyudev/glib.py*
+%exclude %{python2_sitelib}/pyudev/pyqt4.py*
+%exclude %{python2_sitelib}/pyudev/pyside.py*
+%exclude %{python2_sitelib}/pyudev/wx.py*
+
+%files -n python2-%{srcname}-glib
+%license COPYING
+%{python2_sitelib}/pyudev/glib.py*
+
+%files -n python2-%{srcname}-qt4
+%license COPYING
+%{python2_sitelib}/pyudev/pyqt4.py*
+
+%files -n python2-%{srcname}-pyside
+%license COPYING
+%{python2_sitelib}/pyudev/pyside.py*
+
+%files -n python2-%{srcname}-wx
+%license COPYING
+%{python2_sitelib}/pyudev/wx.py*
 
 %files -n python3-%{srcname}
 %license COPYING
 %doc README.rst CHANGES.rst
 %{python3_sitelib}/pyudev
 %{python3_sitelib}/pyudev-%{version}-*.egg-info
+%exclude %{python3_sitelib}/pyudev/glib.py
+%exclude %{python3_sitelib}/pyudev/__pycache__/glib.*
+%exclude %{python3_sitelib}/pyudev/pyqt4.py
+%exclude %{python3_sitelib}/pyudev/__pycache__/pyqt4.*
+%exclude %{python3_sitelib}/pyudev/pyside.py
+%exclude %{python3_sitelib}/pyudev/__pycache__/pyside.*
+%exclude %{python3_sitelib}/pyudev/wx.py
+%exclude %{python3_sitelib}/pyudev/__pycache__/wx.*
+
+%files -n python3-%{srcname}-qt4
+%license COPYING
+%{python3_sitelib}/pyudev/pyqt4.py
+%{python3_sitelib}/pyudev/__pycache__/pyqt4.*
 
 %changelog
+* Thu Dec  3 2015 David Shea <dshea@redhat.com> - 0.17-4
+- Add requires for things that are required
+- Split the main-loop integration modules into separate packages
+
 * Wed Nov 04 2015 Robert Kuska <rkuska@redhat.com> - 0.17-3
 - Rebuilt for Python3.5 rebuild
 

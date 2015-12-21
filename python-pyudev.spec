@@ -1,14 +1,12 @@
 %global srcname pyudev
 Name:             python-%{srcname}
-Version:          0.17
+Version:          0.18.1
 Release:          4%{?dist}
 Summary:          A libudev binding
 
 License:          LGPLv2+
 URL:              http://pypi.python.org/pypi/pyudev
 Source0:          http://pypi.python.org/packages/source/p/%{srcname}/%{srcname}-%{version}.tar.gz
-
-Patch0:           0001-Do-not-install-the-tests-as-a-module.patch
 
 BuildArch:        noarch
 
@@ -37,6 +35,9 @@ Requires:         glibc
 
 # Needed for libudev
 Requires:         systemd-libs
+
+# Used for python2/3 compatibility
+Requires:         python-six
 
 %description -n python2-%{srcname}
 pyudev is a LGPL licensed, pure Python binding for libudev, the device
@@ -74,6 +75,18 @@ Qt4 integration for pyudev.
 This package provides a module pyudev.pyqt4 that contains classes for
 integrating a pyudev monitor with the Qt4 main loop.
 
+%package -n python2-%{srcname}-qt5
+Summary:          Qt5 integration for pyudev
+
+Requires:         python-qt5
+Requires:         python2-%{srcname} = %{version}-%{release}
+
+%description -n python2-%{srcname}-qt5
+Qt5 integration for pyudev.
+
+This package provides a module pyudev.pyqt5 that contains classes for
+integrating a pyudev monitor with the Qt4 main loop.
+
 %package -n python2-%{srcname}-pyside
 Summary:           PySide integration for pyudev
 
@@ -108,6 +121,9 @@ BuildRequires:    python3-setuptools
 # Needed for libudev, loaded through ctypes
 Requires:         systemd-libs
 
+# Used for python2/3 compatibility
+Requires:         python3-six
+
 %description -n python3-%{srcname}
 pyudev is a LGPL licensed, pure Python binding for libudev, the device
 and hardware management and information library for Linux.  It supports
@@ -132,6 +148,18 @@ Qt4 integration for pyudev.
 This package provides a module pyudev.pyqt4 that contains classes for
 integrating a pyudev monitor with the Qt4 main loop.
 
+%package -n python3-%{srcname}-qt5
+Summary:          Qt5 integration for pyudev
+
+Requires:         python3-qt5
+Requires:         python3-%{srcname} = %{version}-%{release}
+
+%description -n python3-%{srcname}-qt5
+Qt5 integration for pyudev.
+
+This package provides a module pyudev.pyqt5 that contains classes for
+integrating a pyudev monitor with the Qt5 main loop.
+
 %prep
 %autosetup -n %{srcname}-%{version}
 rm -rf pyudev.egg-info
@@ -151,6 +179,7 @@ rm -rf pyudev.egg-info
 %{python2_sitelib}/pyudev-%{version}-*.egg-info
 %exclude %{python2_sitelib}/pyudev/glib.py*
 %exclude %{python2_sitelib}/pyudev/pyqt4.py*
+%exclude %{python2_sitelib}/pyudev/pyqt5.py*
 %exclude %{python2_sitelib}/pyudev/pyside.py*
 %exclude %{python2_sitelib}/pyudev/wx.py*
 
@@ -161,6 +190,10 @@ rm -rf pyudev.egg-info
 %files -n python2-%{srcname}-qt4
 %license COPYING
 %{python2_sitelib}/pyudev/pyqt4.py*
+
+%files -n python2-%{srcname}-qt5
+%license COPYING
+%{python2_sitelib}/pyudev/pyqt5.py*
 
 %files -n python2-%{srcname}-pyside
 %license COPYING
@@ -179,6 +212,8 @@ rm -rf pyudev.egg-info
 %exclude %{python3_sitelib}/pyudev/__pycache__/glib.*
 %exclude %{python3_sitelib}/pyudev/pyqt4.py
 %exclude %{python3_sitelib}/pyudev/__pycache__/pyqt4.*
+%exclude %{python3_sitelib}/pyudev/pyqt5.py
+%exclude %{python3_sitelib}/pyudev/__pycache__/pyqt5.*
 %exclude %{python3_sitelib}/pyudev/pyside.py
 %exclude %{python3_sitelib}/pyudev/__pycache__/pyside.*
 %exclude %{python3_sitelib}/pyudev/wx.py
@@ -189,7 +224,29 @@ rm -rf pyudev.egg-info
 %{python3_sitelib}/pyudev/pyqt4.py
 %{python3_sitelib}/pyudev/__pycache__/pyqt4.*
 
+%files -n python3-%{srcname}-qt5
+%license COPYING
+%{python3_sitelib}/pyudev/pyqt5.py
+%{python3_sitelib}/pyudev/__pycache__/pyqt5.*
+
 %changelog
+* Mon Dec 21 2015 mulhern <amulhern@redhat.com> - 0.18.1
+- Restore raising KeyError in astring, asint, asbool methods in Attributes
+- Add dependency on six package
+- pyudev sources now in src directory
+- Added support for pyqt5 monitor observer
+- Added discover module, which looks up a device on limited information
+- DeviceNotFoundError is no longer a subtype of LookupError
+- Attributes class no longer extends Mapping class
+- Attributes class no longer inherits [] operator and other Mapping methods
+- Attributes class object are no longer iterable or indexable and have no length
+- Attributes.available_attributes property added
+- Attributes.get() method, with usual semantics explicitly defined
+- Device.from_* methods are deprecated, use Devices.from_* methods instead
+- Device.from_device_number() now raises DeviceNotFoundByNumberError
+- Devices.from_interface_index() method added
+- Devices.from_kernel_device() method added
+
 * Thu Dec  3 2015 David Shea <dshea@redhat.com> - 0.17-4
 - Add requires for things that are required
 - Split the main-loop integration modules into separate packages

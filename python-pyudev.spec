@@ -1,7 +1,7 @@
 %global srcname pyudev
 Name:             python-%{srcname}
 Version:          0.18.1
-Release:          4%{?dist}
+Release:          5%{?dist}
 Summary:          A libudev binding
 
 License:          LGPLv2+
@@ -230,6 +230,9 @@ rm -rf pyudev.egg-info
 %{python3_sitelib}/pyudev/__pycache__/pyqt5.*
 
 %changelog
+* Thu Feb 04 2016 Fedora Release Engineering <releng@fedoraproject.org> - 0.18.1-5
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_24_Mass_Rebuild
+
 * Mon Dec 21 2015 mulhern <amulhern@redhat.com> - 0.18.1
 - Restore raising KeyError in astring, asint, asbool methods in Attributes
 - Add dependency on six package

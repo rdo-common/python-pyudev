@@ -1,7 +1,15 @@
 %global srcname pyudev
+
+%if 0%{?rhel} == 7
+%bcond_with qt5
+%bcond_with wx
+%bcond_with pyside
+%endif
+
+
 Name:             python-%{srcname}
 Version:          0.18.1
-Release:          5%{?dist}
+Release:          6%{?dist}
 Summary:          A libudev binding
 
 License:          LGPLv2+
@@ -75,6 +83,7 @@ Qt4 integration for pyudev.
 This package provides a module pyudev.pyqt4 that contains classes for
 integrating a pyudev monitor with the Qt4 main loop.
 
+%if %{with qt5}
 %package -n python2-%{srcname}-qt5
 Summary:          Qt5 integration for pyudev
 
@@ -86,7 +95,9 @@ Qt5 integration for pyudev.
 
 This package provides a module pyudev.pyqt5 that contains classes for
 integrating a pyudev monitor with the Qt4 main loop.
+%endif
 
+%if %{with pyside}
 %package -n python2-%{srcname}-pyside
 Summary:           PySide integration for pyudev
 
@@ -98,7 +109,9 @@ PySide integration for pyudev.
 
 This package provides a module pyudev.pyside that contains classes for
 integrating a pyudev monitor with the PySide main loop.
+%endif
 
+%if %{with wx}
 %package -n python2-%{srcname}-wx
 Summary:            wxPython integration for pyudev
 
@@ -110,6 +123,7 @@ wxPython integration for pyudev.
 
 This package provides a module pyudev.wx that contains classes for
 integrating a pyudev montior with the wxPython main loop.
+%endif
 
 %prep
 %autosetup -n %{srcname}-%{version}
@@ -140,19 +154,28 @@ rm -rf pyudev.egg-info
 %license COPYING
 %{python2_sitelib}/pyudev/pyqt4.py*
 
+%if %{with qt5}
 %files -n python2-%{srcname}-qt5
 %license COPYING
 %{python2_sitelib}/pyudev/pyqt5.py*
+%endif
 
+%if %{with pyside}
 %files -n python2-%{srcname}-pyside
 %license COPYING
 %{python2_sitelib}/pyudev/pyside.py*
+%endif
 
+%if %{with wx}
 %files -n python2-%{srcname}-wx
 %license COPYING
 %{python2_sitelib}/pyudev/wx.py*
+%endif
 
 %changelog
+* Thu Jul 11 2019 Alfredo Moralejo <amoralej@redhat.com> - 0.18.1-6
+- Removed bindings for pyside, qt5 and wxPython which does not exist in El7.
+
 * Thu Feb 04 2016 Fedora Release Engineering <releng@fedoraproject.org> - 0.18.1-5
 - Rebuilt for https://fedoraproject.org/wiki/Fedora_24_Mass_Rebuild
 
